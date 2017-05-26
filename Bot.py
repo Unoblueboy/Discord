@@ -32,6 +32,7 @@ discard = []
 libpolicies = 0
 faspolicies = 0
 veto = [False,False] # Ability to veto, Vetoed this turn
+prevGovern = ["",""]
 
 @my_bot.command()
 async def SecretHitler(*args):
@@ -47,7 +48,7 @@ async def r():
 
 def reset():
     global playerlist, SecretHitlerBools, hitler, fascists, president, chancellor
-    global deck, discard, libpolicies, faspolicies, veto
+    global deck, discard, libpolicies, faspolicies, veto, prevGovern
     SecretHitlerBools = [False,False, False]
     playerlist=[]
     hitler = ""
@@ -59,6 +60,7 @@ def reset():
     libpolicies = 0
     faspolicies = 0
     veto = [False,False]
+    prevGovern = ["",""]
 
 @my_bot.command()
 async def Start(*args):
@@ -68,7 +70,7 @@ async def Start(*args):
             reset()
             await my_bot.send_message(channel,"You don't have enough players to play")
         else:
-            global hitler, fascists, playerlist, deck, discard, libpolicies, faspolicies, veto, president, chancellor
+            global hitler, fascists, playerlist, deck, discard, libpolicies, faspolicies, veto, president, chancellor, prevGovern
             random.shuffle(deck)
             SecretHitlerBools[2] = True
             # fascists = random.sample(playerlist,math.ceil((noOfPlayers-4)/2))
@@ -102,18 +104,27 @@ async def Start(*args):
                 else:
                     await select_president()
                 yes, no = await vote()
+                counter = 1
+                skip = False
                 while len(yes) <= len(no):
                     await my_bot.send_message(channel, ", ".join(yes) + " voted ja, and " + ", ".join(no) + " voted nein.")
                     await select_president()
                     yes, no = await vote()
-                await my_bot.send_message(channel, ", ".join(yes) + " voted ja, and " + ", ".join(no) + " voted nein.")
-                if faspolicies >=3:
-                    if chancellor == hitler:
-                        await my_bot.send_message(channel, "The fascists have won")
+                    counter += 1
+                    if counter == 3:
+                        skip = True
+                        prevGovern = ["",""]
                         break
-                    else:
-                        await my_bot.send_message(channel, str(chancellor)[:-5] + " is not hitler")
-                await president_cards()
+                if not skip:
+                    prevGovern = [president,chancellor]
+                    await my_bot.send_message(channel, ", ".join(yes) + " voted ja, and " + ", ".join(no) + " voted nein.")
+                    if faspolicies >=3:
+                        if chancellor == hitler:
+                            await my_bot.send_message(channel, "The fascists have won")
+                            break
+                        else:
+                            await my_bot.send_message(channel, str(chancellor)[:-5] + " is not hitler")
+                    await president_cards()
                 if deck[0] == "l":
                     libpolicies+=1
                     await my_bot.send_message(channel, "A liberal policiy was played")
@@ -127,243 +138,248 @@ async def Start(*args):
                     await my_bot.send_message(channel, "A liberal policiy was played")
                     await my_bot.send_message(channel, "liberal policies: " + str(libpolicies))
                     await my_bot.send_message(channel, "fascist policies: " + str(faspolicies))
-                    if noOfPlayers <= 6:
-                        # 3 is peak top 3 cards
-                        if faspolicies == 3:
-                            await my_bot.send_message(president, "These are the top three cards of the deck:")
-                            for card in deck[:3]:
-                                if card == "l":
-                                    await my_bot.send_message(president, "Liberal")
-                                else:
-                                    await my_bot.send_message(president, "Fascist")
-                        # 4 is kill
-                        if faspolicies == 4:
-                            await my_bot.send_message(president, "Please choose someone to kill")
-                            await my_bot.send_message(channel, "The president is choosing who to kill")
-                            while True:
-                                try:
-                                    msg = await my_bot.wait_for_message(author=president)
-                                    if msg.content in [str(x)[:-5] for x in playerlist]:
-                                        indice = [str(x)[:-5] for x in playerlist].index(msg.content)
-                                        killed = playerlist[indice]
-                                    if killed not in playerlist:
-                                        await my_bot.send_message(president, "Please enter a valid user")
-                                    elif killed == president:
-                                        await my_bot.send_message(president, "You can't kill yourself silly")
+                    if not skip:
+                        if noOfPlayers <= 6:
+                            # 3 is peak top 3 cards
+                            if faspolicies == 3:
+                                await my_bot.send_message(president, "These are the top three cards of the deck:")
+                                for card in deck[:3]:
+                                    if card == "l":
+                                        await my_bot.send_message(president, "Liberal")
                                     else:
-                                        await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
-                                        del playerlist[playerlist.index(killed)]
-                                        break
-                                except:
-                                    pass
-                            if killed == hitler:
-                                await my_bot.send_message(channel, "The liberals have won")
-                                break
-                        # 5 is kill + veto unlocked
-                        if faspolicies == 5:
-                            await my_bot.send_message(president, "Please choose someone to kill")
-                            await my_bot.send_message(channel, "The president is choosing who to kill")
-                            while True:
-                                try:
-                                    msg = await my_bot.wait_for_message(author=president)
-                                    if msg.content in [str(x)[:-5] for x in playerlist]:
-                                        indice = [str(x)[:-5] for x in playerlist].index(msg.content)
-                                        killed = playerlist[indice]
-                                    if killed not in playerlist:
-                                        await my_bot.send_message(president, "Please enter a valid user")
-                                    elif killed == president:
-                                        await my_bot.send_message(president, "You can't kill yourself silly")
-                                    else:
-                                        await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
-                                        del playerlist[playerlist.index(killed)]
-                                        break
-                                except:
-                                    pass
-                            veto[0]=True
-                            if killed == hitler:
-                                await my_bot.send_message(channel, "The liberals have won")
-                                break
-                        # 6 is win
-                        if faspolicies == 6:
-                            await my_bot.send_message(channel, "The fascists have won")
-                            break
-                    elif noOfPlayers <= 8:
-                        pass
-                        # 2 is investigate player identity
-                        if faspolicies == 2:
-                            await my_bot.send_message(president, "Please choose someone to inspect")
-                            await my_bot.send_message(channel, "The president is choosing who to inspect")
-                            while True:
-                                try:
-                                    msg = await my_bot.wait_for_message(author=president)
-                                    if msg.content in [str(x)[:-5] for x in playerlist]:
-                                        indice = [str(x)[:-5] for x in playerlist].index(msg.content)
-                                        inspected = playerlist[indice]
-                                    if inspected not in playerlist:
-                                        await my_bot.send_message(president, "Please enter a valid user")
-                                    elif inspected == president:
-                                        await my_bot.send_message(president, "You can't inspect yourself silly")
-                                    else:
-                                        await my_bot.send_message(channel, "The president has decided to inspected " + str(inspected)[:-5])
-                                        if inspected == hitler or inspected in fascists:
-                                            await my_bot.send_message(president, str(inspected)[:-5] + " is a fascist")
+                                        await my_bot.send_message(president, "Fascist")
+                            # 4 is kill
+                            if faspolicies == 4:
+                                await my_bot.send_message(president, "Please choose someone to kill")
+                                await my_bot.send_message(channel, "The president is choosing who to kill")
+                                while True:
+                                    try:
+                                        msg = await my_bot.wait_for_message(author=president)
+                                        if msg.content in [str(x)[:-5] for x in playerlist]:
+                                            indice = [str(x)[:-5] for x in playerlist].index(msg.content)
+                                            killed = playerlist[indice]
+                                        if killed not in playerlist:
+                                            await my_bot.send_message(president, "Please enter a valid user")
+                                        elif killed == president:
+                                            await my_bot.send_message(president, "You can't kill yourself silly")
                                         else:
-                                            await my_bot.send_message(president, str(inspected)[:-5] + " is a liberal")
-                                        break
-                                except:
-                                    pass
-                        # 3 is pick next president
-                        choice = [True,False]
-                        # 4 is kill
-                        if faspolicies == 4:
-                            await my_bot.send_message(president, "Please choose someone to kill")
-                            await my_bot.send_message(channel, "The president is choosing who to kill")
-                            while True:
-                                try:
-                                    msg = await my_bot.wait_for_message(author=president)
-                                    if msg.content in [str(x)[:-5] for x in playerlist]:
-                                        indice = [str(x)[:-5] for x in playerlist].index(msg.content)
-                                        killed = playerlist[indice]
-                                    if killed not in playerlist:
-                                        await my_bot.send_message(president, "Please enter a valid user")
-                                    elif killed == president:
-                                        await my_bot.send_message(president, "You can't kill yourself silly")
-                                    else:
-                                        await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
-                                        del playerlist[playerlist.index(killed)]
-                                        break
-                                except:
-                                    pass
-                            if killed == hitler:
-                                await my_bot.send_message(channel, "The liberals have won")
-                                break
-                        # 5 is kill + veto unlocked
-                        if faspolicies == 5:
-                            await my_bot.send_message(president, "Please choose someone to kill")
-                            await my_bot.send_message(channel, "The president is choosing who to kill")
-                            while True:
-                                try:
-                                    msg = await my_bot.wait_for_message(author=president)
-                                    if msg.content in [str(x)[:-5] for x in playerlist]:
-                                        indice = [str(x)[:-5] for x in playerlist].index(msg.content)
-                                        killed = playerlist[indice]
-                                    if killed not in playerlist:
-                                        await my_bot.send_message(president, "Please enter a valid user")
-                                    elif killed == president:
-                                        await my_bot.send_message(president, "You can't kill yourself silly")
-                                    else:
-                                        await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
-                                        del playerlist[playerlist.index(killed)]
-                                        break
-                                except:
-                                    pass
-                            veto[0]=True
-                            if killed == hitler:
-                                await my_bot.send_message(channel, "The liberals have won")
-                                break
-                        # 6 is win
-                        if faspolicies == 6:
-                            await my_bot.send_message(channel, "The fascists have won")
-                            break
-                    else:
-                        pass
-                        # 1 is investigate player identity
-                        if faspolicies == 1:
-                            await my_bot.send_message(president, "Please choose someone to inspect")
-                            await my_bot.send_message(channel, "The president is choosing who to inspect")
-                            while True:
-                                try:
-                                    msg = await my_bot.wait_for_message(author=president)
-                                    if msg.content in [str(x)[:-5] for x in playerlist]:
-                                        indice = [str(x)[:-5] for x in playerlist].index(msg.content)
-                                        inspected = playerlist[indice]
-                                    if inspected not in playerlist:
-                                        await my_bot.send_message(president, "Please enter a valid user")
-                                    elif inspected == president:
-                                        await my_bot.send_message(president, "You can't inspect yourself silly")
-                                    else:
-                                        await my_bot.send_message(channel, "The president has decided to inspected " + str(inspected)[:-5])
-                                        if inspected == hitler or inspected in fascists:
-                                            await my_bot.send_message(president, str(inspected)[:-5] + " is a fascist")
+                                            await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
+                                            del playerlist[playerlist.index(killed)]
+                                            break
+                                    except:
+                                        pass
+                                if killed == hitler:
+                                    await my_bot.send_message(channel, "The liberals have won")
+                                    break
+                            # 5 is kill + veto unlocked
+                            if faspolicies == 5:
+                                await my_bot.send_message(president, "Please choose someone to kill")
+                                await my_bot.send_message(channel, "The president is choosing who to kill")
+                                while True:
+                                    try:
+                                        msg = await my_bot.wait_for_message(author=president)
+                                        if msg.content in [str(x)[:-5] for x in playerlist]:
+                                            indice = [str(x)[:-5] for x in playerlist].index(msg.content)
+                                            killed = playerlist[indice]
+                                        if killed not in playerlist:
+                                            await my_bot.send_message(president, "Please enter a valid user")
+                                        elif killed == president:
+                                            await my_bot.send_message(president, "You can't kill yourself silly")
                                         else:
-                                            await my_bot.send_message(president, str(inspected)[:-5] + " is a liberal")
-                                        break
-                                except:
-                                    pass
-                        # 2 is investigate player identity
-                        if faspolicies == 2:
-                            await my_bot.send_message(president, "Please choose someone to inspect")
-                            await my_bot.send_message(channel, "The president is choosing who to inspect")
-                            while True:
-                                try:
-                                    msg = await my_bot.wait_for_message(author=president)
-                                    if msg.content in [str(x)[:-5] for x in playerlist]:
-                                        indice = [str(x)[:-5] for x in playerlist].index(msg.content)
-                                        inspected = playerlist[indice]
-                                    if inspected not in playerlist:
-                                        await my_bot.send_message(president, "Please enter a valid user")
-                                    elif inspected == president:
-                                        await my_bot.send_message(president, "You can't inspect yourself silly")
-                                    else:
-                                        await my_bot.send_message(channel, "The president has decided to inspected " + str(inspected)[:-5])
-                                        if inspected == hitler or inspected in fascists:
-                                            await my_bot.send_message(president, str(inspected)[:-5] + " is a fascist")
+                                            await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
+                                            del playerlist[playerlist.index(killed)]
+                                            break
+                                    except:
+                                        pass
+                                veto[0]=True
+                                if killed == hitler:
+                                    await my_bot.send_message(channel, "The liberals have won")
+                                    break
+                            # 6 is win
+                            if faspolicies == 6:
+                                await my_bot.send_message(channel, "The fascists have won")
+                                break
+                        elif noOfPlayers <= 8:
+                            pass
+                            # 2 is investigate player identity
+                            if faspolicies == 2:
+                                await my_bot.send_message(president, "Please choose someone to inspect")
+                                await my_bot.send_message(channel, "The president is choosing who to inspect")
+                                while True:
+                                    try:
+                                        msg = await my_bot.wait_for_message(author=president)
+                                        if msg.content in [str(x)[:-5] for x in playerlist]:
+                                            indice = [str(x)[:-5] for x in playerlist].index(msg.content)
+                                            inspected = playerlist[indice]
+                                        if inspected not in playerlist:
+                                            await my_bot.send_message(president, "Please enter a valid user")
+                                        elif inspected == president:
+                                            await my_bot.send_message(president, "You can't inspect yourself silly")
                                         else:
-                                            await my_bot.send_message(president, str(inspected)[:-5] + " is a liberal")
-                                        break
-                                except:
-                                    pass
-                        # 3 is pick next president
-                        if faspolicies == 3:
+                                            await my_bot.send_message(channel, "The president has decided to inspected " + str(inspected)[:-5])
+                                            if inspected == hitler or inspected in fascists:
+                                                await my_bot.send_message(president, str(inspected)[:-5] + " is a fascist")
+                                            else:
+                                                await my_bot.send_message(president, str(inspected)[:-5] + " is a liberal")
+                                            break
+                                    except:
+                                        pass
+                            # 3 is pick next president
                             choice = [True,False]
-                        # 4 is kill
-                        if faspolicies == 4:
-                            await my_bot.send_message(president, "Please choose someone to kill")
-                            await my_bot.send_message(channel, "The president is choosing who to kill")
-                            while True:
-                                try:
-                                    msg = await my_bot.wait_for_message(author=president)
-                                    if msg.content in [str(x)[:-5] for x in playerlist]:
-                                        indice = [str(x)[:-5] for x in playerlist].index(msg.content)
-                                        killed = playerlist[indice]
-                                    if killed not in playerlist:
-                                        await my_bot.send_message(president, "Please enter a valid user")
-                                    elif killed == president:
-                                        await my_bot.send_message(president, "You can't kill yourself silly")
-                                    else:
-                                        await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
-                                        del playerlist[playerlist.index(killed)]
-                                        break
-                                except:
-                                    pass
-                            if killed == hitler:
-                                await my_bot.send_message(channel, "The liberals have won")
+                            # 4 is kill
+                            if faspolicies == 4:
+                                await my_bot.send_message(president, "Please choose someone to kill")
+                                await my_bot.send_message(channel, "The president is choosing who to kill")
+                                while True:
+                                    try:
+                                        msg = await my_bot.wait_for_message(author=president)
+                                        if msg.content in [str(x)[:-5] for x in playerlist]:
+                                            indice = [str(x)[:-5] for x in playerlist].index(msg.content)
+                                            killed = playerlist[indice]
+                                        if killed not in playerlist:
+                                            await my_bot.send_message(president, "Please enter a valid user")
+                                        elif killed == president:
+                                            await my_bot.send_message(president, "You can't kill yourself silly")
+                                        else:
+                                            await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
+                                            del playerlist[playerlist.index(killed)]
+                                            break
+                                    except:
+                                        pass
+                                if killed == hitler:
+                                    await my_bot.send_message(channel, "The liberals have won")
+                                    break
+                            # 5 is kill + veto unlocked
+                            if faspolicies == 5:
+                                await my_bot.send_message(president, "Please choose someone to kill")
+                                await my_bot.send_message(channel, "The president is choosing who to kill")
+                                while True:
+                                    try:
+                                        msg = await my_bot.wait_for_message(author=president)
+                                        if msg.content in [str(x)[:-5] for x in playerlist]:
+                                            indice = [str(x)[:-5] for x in playerlist].index(msg.content)
+                                            killed = playerlist[indice]
+                                        if killed not in playerlist:
+                                            await my_bot.send_message(president, "Please enter a valid user")
+                                        elif killed == president:
+                                            await my_bot.send_message(president, "You can't kill yourself silly")
+                                        else:
+                                            await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
+                                            del playerlist[playerlist.index(killed)]
+                                            break
+                                    except:
+                                        pass
+                                veto[0]=True
+                                if killed == hitler:
+                                    await my_bot.send_message(channel, "The liberals have won")
+                                    break
+                            # 6 is win
+                            if faspolicies == 6:
+                                await my_bot.send_message(channel, "The fascists have won")
                                 break
-                        # 5 is kill + veto unlocked
-                        if faspolicies == 5:
-                            await my_bot.send_message(president, "Please choose someone to kill")
-                            await my_bot.send_message(channel, "The president is choosing who to kill")
-                            while True:
-                                try:
-                                    msg = await my_bot.wait_for_message(author=president)
-                                    if msg.content in [str(x)[:-5] for x in playerlist]:
-                                        indice = [str(x)[:-5] for x in playerlist].index(msg.content)
-                                        killed = playerlist[indice]
-                                    if killed not in playerlist:
-                                        await my_bot.send_message(president, "Please enter a valid user")
-                                    elif killed == president:
-                                        await my_bot.send_message(president, "You can't kill yourself silly")
-                                    else:
-                                        await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
-                                        del playerlist[playerlist.index(killed)]
-                                        break
-                                except:
-                                    pass
-                            veto[0]=True
-                            if killed == hitler:
-                                await my_bot.send_message(channel, "The liberals have won")
-                                break
-                        # 6 is win
+                        else:
+                            pass
+                            # 1 is investigate player identity
+                            if faspolicies == 1:
+                                await my_bot.send_message(president, "Please choose someone to inspect")
+                                await my_bot.send_message(channel, "The president is choosing who to inspect")
+                                while True:
+                                    try:
+                                        msg = await my_bot.wait_for_message(author=president)
+                                        if msg.content in [str(x)[:-5] for x in playerlist]:
+                                            indice = [str(x)[:-5] for x in playerlist].index(msg.content)
+                                            inspected = playerlist[indice]
+                                        if inspected not in playerlist:
+                                            await my_bot.send_message(president, "Please enter a valid user")
+                                        elif inspected == president:
+                                            await my_bot.send_message(president, "You can't inspect yourself silly")
+                                        else:
+                                            await my_bot.send_message(channel, "The president has decided to inspected " + str(inspected)[:-5])
+                                            if inspected == hitler or inspected in fascists:
+                                                await my_bot.send_message(president, str(inspected)[:-5] + " is a fascist")
+                                            else:
+                                                await my_bot.send_message(president, str(inspected)[:-5] + " is a liberal")
+                                            break
+                                    except:
+                                        pass
+                            # 2 is investigate player identity
+                            if faspolicies == 2:
+                                await my_bot.send_message(president, "Please choose someone to inspect")
+                                await my_bot.send_message(channel, "The president is choosing who to inspect")
+                                while True:
+                                    try:
+                                        msg = await my_bot.wait_for_message(author=president)
+                                        if msg.content in [str(x)[:-5] for x in playerlist]:
+                                            indice = [str(x)[:-5] for x in playerlist].index(msg.content)
+                                            inspected = playerlist[indice]
+                                        if inspected not in playerlist:
+                                            await my_bot.send_message(president, "Please enter a valid user")
+                                        elif inspected == president:
+                                            await my_bot.send_message(president, "You can't inspect yourself silly")
+                                        else:
+                                            await my_bot.send_message(channel, "The president has decided to inspected " + str(inspected)[:-5])
+                                            if inspected == hitler or inspected in fascists:
+                                                await my_bot.send_message(president, str(inspected)[:-5] + " is a fascist")
+                                            else:
+                                                await my_bot.send_message(president, str(inspected)[:-5] + " is a liberal")
+                                            break
+                                    except:
+                                        pass
+                            # 3 is pick next president
+                            if faspolicies == 3:
+                                choice = [True,False]
+                            # 4 is kill
+                            if faspolicies == 4:
+                                await my_bot.send_message(president, "Please choose someone to kill")
+                                await my_bot.send_message(channel, "The president is choosing who to kill")
+                                while True:
+                                    try:
+                                        msg = await my_bot.wait_for_message(author=president)
+                                        if msg.content in [str(x)[:-5] for x in playerlist]:
+                                            indice = [str(x)[:-5] for x in playerlist].index(msg.content)
+                                            killed = playerlist[indice]
+                                        if killed not in playerlist:
+                                            await my_bot.send_message(president, "Please enter a valid user")
+                                        elif killed == president:
+                                            await my_bot.send_message(president, "You can't kill yourself silly")
+                                        else:
+                                            await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
+                                            del playerlist[playerlist.index(killed)]
+                                            break
+                                    except:
+                                        pass
+                                if killed == hitler:
+                                    await my_bot.send_message(channel, "The liberals have won")
+                                    break
+                            # 5 is kill + veto unlocked
+                            if faspolicies == 5:
+                                await my_bot.send_message(president, "Please choose someone to kill")
+                                await my_bot.send_message(channel, "The president is choosing who to kill")
+                                while True:
+                                    try:
+                                        msg = await my_bot.wait_for_message(author=president)
+                                        if msg.content in [str(x)[:-5] for x in playerlist]:
+                                            indice = [str(x)[:-5] for x in playerlist].index(msg.content)
+                                            killed = playerlist[indice]
+                                        if killed not in playerlist:
+                                            await my_bot.send_message(president, "Please enter a valid user")
+                                        elif killed == president:
+                                            await my_bot.send_message(president, "You can't kill yourself silly")
+                                        else:
+                                            await my_bot.send_message(channel, "The president has decided to kill " + str(killed)[:-5])
+                                            del playerlist[playerlist.index(killed)]
+                                            break
+                                    except:
+                                        pass
+                                veto[0]=True
+                                if killed == hitler:
+                                    await my_bot.send_message(channel, "The liberals have won")
+                                    break
+                            # 6 is win
+                            if faspolicies == 6:
+                                win = True
+                                await my_bot.send_message(channel, "The fascists have won")
+                    else:
                         if faspolicies == 6:
                             win = True
                             await my_bot.send_message(channel, "The fascists have won")
@@ -414,19 +430,21 @@ async def select_president(choice=False):
     await select_chancellor()
 
 async def select_chancellor():
-    global chancellor, playerlist, president
+    global chancellor, playerlist, president, prevGovern
     while True:
         try:
             msg = await my_bot.wait_for_message(timeout=60.0, author=president)
             if msg.content in [str(x)[:-5] for x in playerlist]:
                 indice = [str(x)[:-5] for x in playerlist].index(msg.content)
                 chancellor = playerlist[indice]
-            if chancellor not in playerlist:
-                await my_bot.send_message(president, "Please enter a valid user")
-            elif chancellor == president:
-                await my_bot.send_message(president, "You cannot be president and chancellor silly")
+                if chancellor == president:
+                    await my_bot.send_message(president, "You cannot be president and chancellor silly")
+                elif chancellor in prevGovern:
+                    await my_bot.send_message(president, "You cannot choose candidates who were just government silly")
+                else:
+                    break
             else:
-                break
+                await my_bot.send_message(president, "Please enter a valid user")
         except:
             pass
     await my_bot.send_message(channel, str(president)[:-5] + " has elected " + str(chancellor)[:-5] + " as chancellor")
