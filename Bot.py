@@ -453,16 +453,16 @@ async def vote():
     global playerlist
     yes = []
     no = []
+    x = [False]*len(playerlist)
     for player in playerlist:
-        msg = await get_vote(player)
-        if msg == "y":
-            yes.append(str(player)[:-5])
-        else:
-            no.append(str(player)[:-5])
+        # msg = await get_vote(player)
+        asyncio.ensure_future(get_vote(player,yes,no,x))
         # print(msg)
+    while len(x)!=0:
+        await asyncio.sleep(1)
     return yes, no
 
-async def get_vote(player):
+async def get_vote(player,yes,no,x):
     await my_bot.send_message(player, "Do you approve of this government, y/n?")
     msg = await my_bot.wait_for_message(author=player)
     try:
@@ -476,7 +476,12 @@ async def get_vote(player):
             msg = msg.content.lower()
         except:
             pass
-    return msg
+    if msg == "y":
+        yes.append(str(player)[:-5])
+    else:
+        no.append(str(player)[:-5])
+    await my_bot.send_message(channel, str(player)[:-5] + " has voted")
+    del x[0]
 
 async def president_cards():
     global deck, discard, president, libpolicies, faspolicies
@@ -547,4 +552,4 @@ async def on_message(message):
 
     await my_bot.process_commands(message)
 
-my_bot.run("MzE3MDUwNjUwMjgwMDY3MDcz.DAeL-Q.oa6XVpXR_rjvSUnXUl6KT1K2BwQ")
+my_bot.run("MzE3ODM5MzY4NTcwMDExNjUz.DApqiA.za3sxT_y0wes3z46TDKI7elJkEU")
