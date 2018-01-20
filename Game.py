@@ -133,7 +133,7 @@ class Game:
             self.deck.shuffle()
 
             # Choose the fascist
-            for fascists in random.sample(self.players.players,1):#math.ceil((self.noOfPlayers-4)/2)):
+            for fascists in random.sample(self.players.players,math.ceil((self.noOfPlayers-4)/2)):
                 fascists.fascist = True
 
             # Choose Hitler

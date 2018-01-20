@@ -2,6 +2,7 @@ import discord
 import asyncio
 import random
 import math
+import configparser
 from Player import Player
 from Game import Game
 from discord.ext import commands
@@ -74,4 +75,7 @@ async def on_message(message):
     firstMessage = False
     await my_bot.process_commands(message)
 
-my_bot.run("MzE3ODM5MzY4NTcwMDExNjUz.DApqiA.za3sxT_y0wes3z46TDKI7elJkEU")
+config = configparser.ConfigParser()
+config.read("config.ini")
+token = config["DEFAULT"]["Token"]
+my_bot.run(token)
